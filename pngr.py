@@ -4,7 +4,8 @@
 # Commands
 # q - Quit
 
-import sys, os
+import sys
+import subprocess
 import curses
 from curses import wrapper
 import time
@@ -54,6 +55,7 @@ def drawOutput(stdscr, times):
         total1Minute, total5Minute, total15Minute = 0, 0, 0
         total1MinuteCount, total5MinuteCount, total15MinuteCount = min(len(times), 60), min(len(times), 300), min(len(times), 900)
         
+        # TODO: there's an error in the calculation here.... once there are 60 readings, average1Minute always decreases
         for i in range(len(times) - total1MinuteCount, len(times)):
             total1Minute += times[len(times)-1-i]
         average1Minute = round(total1Minute / len(times), 2)
@@ -70,7 +72,7 @@ def drawOutput(stdscr, times):
 
 def ping():
     start = time.time()
-    response = os.system("ping -c 1 "+sys.argv[1])
+    response = subprocess.check_output("ping -c 1 "+sys.argv[1], shell=True)
     end = time.time()
 
     # in practice, python seems to add about 10ms of overhead vs linux ping
