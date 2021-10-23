@@ -11,7 +11,6 @@ import curses
 from curses import wrapper
 import time
 from time import sleep
-import signal
 
 
 def pingDrawLoop(stdscr, times, target):
@@ -36,26 +35,30 @@ def pingDrawLoop(stdscr, times, target):
 def drawDebugOutput(stdscr, times):
     maxY, maxX = stdscr.getmaxyx()
 
-    stdscr.move(maxY - 41, 50)
+    stdscr.move(maxY - 10, 10)
     stdscr.addstr("CURRENT TIME: " + str(int(time.time())))
 
-    stdscr.move(maxY - 40, 50)
-    stdscr.addstr("DEBUG: " + str(times))
+    stdscr.move(maxY - 9, 10)
+    stdscr.addstr("DEBUG:        " + str(times))
 
 
 def drawGraph(stdscr, times):
     maxY, maxX = stdscr.getmaxyx()
-    graphMaxY = maxY - 3
+    graphMaxY = maxY - 1
+    graphMaxX = maxX - 1
 
-    # Draw x axis
+    # Draw y axis
     for y in range(0, graphMaxY):
         stdscr.move(y, 0)
         stdscr.addstr(str(graphMaxY - y))
 
     # Plot data points
-    xOffset = 2
+    xOffset = 1
     for x in range(xOffset, len(times) + xOffset):
-        for y in range(graphMaxY - times[x - xOffset], graphMaxY):
+        rangeStart = 0
+        if times[x - xOffset] < graphMaxY:
+            rangeStart = graphMaxY - times[x - xOffset]
+        for y in range(rangeStart, graphMaxY):
             stdscr.move(y, x * 2 + xOffset * 2)
             stdscr.addstr("[]")
 
@@ -84,11 +87,15 @@ def drawOutput(stdscr, times):
 
     stdscr.move(maxY - 1, 0)
     stdscr.addstr(
-        "Last: "
-        + str(times[len(times) - 1])
-        + "  Count: "
+        "Count:"
         + str(len(times))
-        + "  Average: "
+        + "  Last:"
+        + str(times[len(times) - 1])
+        + "  Min:"
+        + str(min(times))
+        + "  Max:"
+        + str(max(times))
+        + "  Average:"
         + str(average1Minute)
         + " "
         + str(average5Minute)
@@ -108,49 +115,42 @@ def ping(target):
 
 def main(stdscr):
 
-    if len(sys.argv) < 2:
-        print("Error: Missing URL target")
-        # help()
-        # exit()
-    else:
-        target = sys.argv[1]
-        print(">" + str(target) + "<")
+    target = sys.argv[1]
+    print(">" + str(target) + "<")
 
-        # signal.pause()
+    # set up screen
+    stdscr.clear()
+    stdscr.refresh()
+    stdscr.nodelay(True)
 
-        # set up screen
-        stdscr.clear()
-        stdscr.refresh()
-        stdscr.nodelay(True)
+    # set up colors
+    curses.curs_set(0)
+    curses.start_color()
+    curses.init_color(curses.COLOR_WHITE, 1000, 1000, 1000)
+    curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
+    stdscr.bkgd(curses.color_pair(1))
 
-        # set up colors
-        curses.curs_set(0)
-        curses.start_color()
-        curses.init_color(curses.COLOR_WHITE, 1000, 1000, 1000)
-        curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
-        stdscr.bkgd(curses.color_pair(1))
+    # all recorded ping times
+    times = []
 
-        # all recorded ping times
-        times = []
+    # input loop
+    key = ""
+    pause = False
+    while key != ord("q"):
 
-        # input loop
-        key = ""
-        pause = False
-        while key != ord("q"):
+        # allow pausing
+        if key == ord("p"):
+            pause = not pause
+        if not pause:
+            pingDrawLoop(stdscr, times, target)
 
-            # allow pausing
-            if key == ord("p"):
-                pause = not pause
-            if not pause:
-                pingDrawLoop(stdscr, times, target)
+        sleep(1)  # TODO: find a nicer way of accomplishing wait between pings
 
-            sleep(1)  # TODO: find a nicer way of accomplishing wait between pings
+        # user input
+        key = stdscr.getch()
 
-            # user input
-            key = stdscr.getch()
-
-        # unmount curses terminal interactions
-        curses.endwin()
+    # unmount curses terminal interactions
+    curses.endwin()
 
 
 def help():
@@ -169,4 +169,9 @@ if __name__ == "__main__":
     if "--help" in sys.argv:
         help()
     else:
-        wrapper(main)
+        if len(sys.argv) < 2:
+            print("Error: Missing URL target")
+            help()
+            exit()
+        else:
+            wrapper(main)
